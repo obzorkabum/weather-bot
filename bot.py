@@ -159,8 +159,6 @@ async def handle_city(message: Message):
     city_input = message.text.strip()
     city_query = RUSSIAN_CITIES.get(city_input.lower(), city_input)
 
-    await message.answer(f"\U0001f50d \u0418\u0449\u0443 \u043f\u043e\u0433\u043e\u0434\u0443 \u0434\u043b\u044f <b>{city_input}</b>...")
-
     try:
         data = await fetch_weather(city_query)
     except ValueError as e:
