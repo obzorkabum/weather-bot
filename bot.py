@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 import aiohttp
 from datetime import datetime, timedelta
@@ -84,6 +85,8 @@ async def fetch_weather(city: str) -> dict:
     }
     async with aiohttp.ClientSession() as session:
         async with session.get(OWM_BASE, params=params) as resp:
+            body = await resp.text()
+            print(f"[OWM] status={resp.status} city={city} key_present={bool(OWM_API_KEY)} body={body[:200]}", file=sys.stderr)
             if resp.status == 404:
                 raise ValueError("city_not_found")
             if resp.status != 200:
