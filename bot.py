@@ -248,6 +248,7 @@ async def cmd_cities(message: Message):
     await message.answer(
         "\U0001f4cd <b>\u0418\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435</b> \u2014 \u043d\u0430\u0436\u043c\u0438 \u043d\u0430 \u0433\u043e\u0440\u043e\u0434:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        parse_mode="HTML",
     )
 
 
