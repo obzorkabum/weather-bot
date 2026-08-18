@@ -164,7 +164,7 @@ async def handle_city(message: Message):
     except ValueError as e:
         if str(e) == "city_not_found":
             await message.answer(
-                f"\u274c \u0413\u043e\u0440\u043e\u0434 <b>{city_input}</b> \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.\n"
+                f"\u274c \u0413\u043e\u0440\u043e\u0434 {city_input} \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.\n"
                 "\u041f\u0440\u043e\u0432\u0435\u0440\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0435\u0449\u0451 \u0440\u0430\u0437."
             )
         else:
