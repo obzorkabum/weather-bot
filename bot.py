@@ -216,7 +216,8 @@ async def cmd_start(message: Message):
     await message.answer(
         "\U0001f324\ufe0f <b>\u041f\u043e\u0433\u043e\u0434\u043d\u044b\u0439 \u0431\u043e\u0442</b>\n\n"
         "\u041e\u0442\u043f\u0440\u0430\u0432\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u2014 \u043f\u043e\u043b\u0443\u0447\u0438\u0448\u044c \u043f\u0440\u043e\u0433\u043d\u043e\u0437 \u043d\u0430 5 \u0434\u043d\u0435\u0439.\n\n"
-        "\U0001f3ee \u041f\u0440\u0438\u043c\u0435\u0440\u044b: <code>\u041c\u043e\u0441\u043a\u0432\u0430</code>, <code>London</code>, <code>Paris</code>",
+        "\U0001f3ee \u041f\u0440\u0438\u043c\u0435\u0440\u044b: <code>\u041c\u043e\u0441\u043a\u0432\u0430</code>, <code>London</code>, <code>Paris</code>\n\n"
+        "\U0001f449 \u041d\u0430\u0436\u043c\u0438 \u043a\u043d\u043e\u043f\u043a\u0438 \u0441\u043d\u0438\u0437\u0443 \u0434\u043b\u044f \u0431\u044b\u0441\u0442\u0440\u043e\u0433\u043e \u0434\u043e\u0441\u0442\u0443\u043f\u0430",
         reply_markup=main_keyboard(),
         parse_mode="HTML",
     )
@@ -244,6 +245,7 @@ async def cmd_cities(message: Message):
         await message.answer(
             "\U0001f4cd \u0423 \u0442\u0435\u0431\u044f \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u044b\u0445 \u0433\u043e\u0440\u043e\u0434\u043e\u0432.\n\n"
             "\u0421\u043e\u0445\u0440\u0430\u043d\u0438: <code>/save \u041c\u043e\u0441\u043a\u0432\u0430</code>",
+            reply_markup=main_keyboard(),
             parse_mode="HTML",
         )
         return
