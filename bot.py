@@ -2,18 +2,21 @@ import os
 import sys
 import asyncio
 import aiohttp
+import asyncpg
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 OWM_API_KEY = os.environ["OWM_API_KEY"]
+DATABASE_URL = os.environ["DATABASE_URL"]
 OWM_BASE = "https://api.openweathermap.org/data/2.5/forecast"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 router = Router()
+db = None
 
 WMO_EMOJI = {
     (200, 232): "\u26c8\ufe0f",
@@ -66,6 +69,64 @@ WEEKDAYS_RU = {
     5: "\U0001f520 Сб",
     6: "\U0001f521 Вс",
 }
+
+MAX_FAVORITES = 3
+
+
+async def init_db():
+    global db
+    db = await asyncpg.create_pool(DATABASE_URL)
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS favorites (
+            user_id BIGINT,
+            city    TEXT NOT NULL,
+            query   TEXT NOT NULL,
+            PRIMARY KEY (user_id, city)
+        )
+    """)
+
+
+async def add_favorite(user_id: int, city: str, query: str) -> tuple[bool, str]:
+    count = await db.fetchval(
+        "SELECT COUNT(*) FROM favorites WHERE user_id = $1", user_id
+    )
+    if count >= MAX_FAVORITES:
+        return False, f"\u274c \u041c\u0430\u043a\u0441\u0438\u043c\u0443\u043c {MAX_FAVORITES} \u043c\u0435\u0441\u0442. \u0423\u0434\u0430\u043b\u0438 \u043b\u0438\u0431\u043e \u0434\u0440\u0443\u0433\u043e\u0435 \u0441 /remove."
+    exists = await db.fetchval(
+        "SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id=$1 AND city=$2)",
+        user_id, city,
+    )
+    if exists:
+        return False, f"\u274c {city} \u0443\u0436\u0435 \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u043c."
+    await db.execute(
+        "INSERT INTO favorites (user_id, city, query) VALUES ($1, $2, $3)",
+        user_id, city, query,
+    )
+    return True, f"\u2705 {city} \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e!"
+
+
+async def remove_favorite(user_id: int, city: str) -> tuple[bool, str]:
+    result = await db.execute(
+        "DELETE FROM favorites WHERE user_id=$1 AND city=$2",
+        user_id, city,
+    )
+    if result == "DELETE 0":
+        return False, f"\u274c {city} \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u043c."
+    return True, f"\u2705 {city} \u0443\u0434\u0430\u043b\u0435\u043d \u0438\u0437 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e."
+
+
+async def get_favorites(user_id: int) -> list[asyncpg.Record]:
+    return await db.fetch(
+        "SELECT city, query FROM favorites WHERE user_id=$1 ORDER BY city",
+        user_id,
+    )
+
+
+def resolve_city(text: str) -> tuple[str, str]:
+    lookup = text.strip().lower()
+    query = RUSSIAN_CITIES.get(lookup, text.strip())
+    city_display = text.strip().title() if query == text.strip() else text.strip()
+    return city_display, query
 
 
 def get_emoji(code: int) -> str:
@@ -142,16 +203,112 @@ async def cmd_start(message: Message):
     await message.answer(
         "\U0001f324\ufe0f <b>\u041f\u043e\u0433\u043e\u0434\u043d\u044b\u0439 \u0431\u043e\u0442</b>\n\n"
         "\u041e\u0442\u043f\u0440\u0430\u0432\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u2014 \u043f\u043e\u043b\u0443\u0447\u0438\u0448\u044c \u043f\u0440\u043e\u0433\u043d\u043e\u0437 \u043d\u0430 5 \u0434\u043d\u0435\u0439.\n\n"
-        "\u041f\u0440\u0438\u043c\u0435\u0440\u044b: <code>\u041c\u043e\u0441\u043a\u0432\u0430</code>, <code>London</code>, <code>Paris</code>"
+        "\U0001f4cd <b>\u0418\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435:</b>\n"
+        "/save \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434\n"
+        "/remove \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0443\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434\n"
+        "/cities \u2014 \u043f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435\n\n"
+        "\U0001f3ee \u041f\u0440\u0438\u043c\u0435\u0440\u044b: <code>\u041c\u043e\u0441\u043a\u0432\u0430</code>, <code>London</code>, <code>Paris</code>"
     )
 
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
-        "\u041f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c \u0438\u043b\u0438 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c.\n"
-        "\u0411\u043e\u0442 \u043f\u043e\u043a\u0430\u0436\u0435\u0442 \u043f\u043e\u0433\u043e\u0434\u0443 \u043d\u0430 5 \u0434\u043d\u0435\u0439."
+        "\U0001f4cb <b>\u041a\u043e\u043c\u0430\u043d\u0434\u044b:</b>\n\n"
+        "/start \u2014 \u043d\u0430\u0447\u0430\u043b\u043e\n"
+        "/help \u2014 \u043f\u043e\u043c\u043e\u0449\u044c\n"
+        "/cities \u2014 \u043c\u043e\u0438 \u0433\u043e\u0440\u043e\u0434\u0430\n"
+        "/save \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c (max 3)\n"
+        "/remove \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0443\u0434\u0430\u043b\u0438\u0442\u044c\n\n"
+        "\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c \u0438\u043b\u0438 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c."
     )
+
+
+@router.message(Command("cities"))
+async def cmd_cities(message: Message):
+    user_id = message.from_user.id
+    favorites = await get_favorites(user_id)
+
+    if not favorites:
+        await message.answer(
+            "\U0001f4cd \u0423 \u0442\u0435\u0431\u044f \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u044b\u0445 \u0433\u043e\u0440\u043e\u0434\u043e\u0432.\n\n"
+            "\u0421\u043e\u0445\u0440\u0430\u043d\u0438: <code>/save \u041c\u043e\u0441\u043a\u0432\u0430</code>"
+        )
+        return
+
+    buttons = []
+    for row in favorites:
+        buttons.append(
+            [InlineKeyboardButton(text=f"\U0001f324\ufe0f {row['city']}", callback_data=f"fav:{row['query']}")]
+        )
+
+    await message.answer(
+        "\U0001f4cd <b>\u0418\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435</b> \u2014 \u043d\u0430\u0436\u043c\u0438 \u043d\u0430 \u0433\u043e\u0440\u043e\u0434:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
+
+
+@router.callback_query(F.data.startswith("fav:"))
+async def handle_fav_callback(callback: CallbackQuery):
+    query = callback.data.removeprefix("fav:")
+    await callback.answer()
+
+    try:
+        data = await fetch_weather(query)
+    except ValueError as e:
+        if str(e) == "city_not_found":
+            await callback.message.answer(
+                f"\u274c \u0413\u043e\u0440\u043e\u0434 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d. \u0423\u0434\u0430\u043b\u0438 \u0435\u0433\u043e \u0438\u0437 /cities \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0438 \u0437\u0430\u043d\u043e\u0432\u043e."
+            )
+        else:
+            await callback.message.answer("\u274c \u041e\u0448\u0438\u0431\u043a\u0430 API \u043f\u043e\u0433\u043e\u0434\u044b. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u043f\u043e\u0437\u0436\u0435.")
+        return
+    except Exception:
+        await callback.message.answer("\u274c \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u043b\u0430 \u043e\u0448\u0438\u0431\u043a\u0430. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u043f\u043e\u0437\u0436\u0435.")
+        return
+
+    text = format_forecast(data)
+    await callback.message.answer(text, parse_mode="HTML")
+
+
+@router.message(Command("save"))
+async def cmd_save(message: Message):
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer(
+            "\u274c \u0423\u043a\u0430\u0436\u0438 \u0433\u043e\u0440\u043e\u0434: /save \u041c\u043e\u0441\u043a\u0432\u0430"
+        )
+        return
+
+    city_name = args[1].strip()
+    city_display, query = resolve_city(city_name)
+    ok, text = await add_favorite(message.from_user.id, city_display, query)
+    await message.answer(text)
+
+
+@router.message(Command("remove"))
+async def cmd_remove(message: Message):
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer(
+            "\u274c \u0423\u043a\u0430\u0436\u0438 \u0433\u043e\u0440\u043e\u0434: /remove \u041c\u043e\u0441\u043a\u0432\u0430"
+        )
+        return
+
+    city_name = args[1].strip()
+    _, query = resolve_city(city_name)
+    favorites = await get_favorites(message.from_user.id)
+    target_city = None
+    for fav in favorites:
+        if fav["query"] == query or fav["city"].lower() == city_name.lower():
+            target_city = fav["city"]
+            break
+
+    if not target_city:
+        target_city = city_name.title()
+
+    ok, text = await remove_favorite(message.from_user.id, target_city)
+    await message.answer(text)
 
 
 @router.message(F.text)
@@ -179,6 +336,7 @@ async def handle_city(message: Message):
 
 
 async def main():
+    await init_db()
     dp.include_router(router)
     print("Bot is starting...")
     await dp.start_polling(bot)
