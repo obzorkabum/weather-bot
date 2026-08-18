@@ -6,7 +6,7 @@ import asyncpg
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 OWM_API_KEY = os.environ["OWM_API_KEY"]
@@ -71,6 +71,19 @@ WEEKDAYS_RU = {
 }
 
 MAX_FAVORITES = 3
+
+user_state = {}
+
+
+def main_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="\U0001f3ef \u041c\u043e\u0438 \u0433\u043e\u0440\u043e\u0434\u0430")],
+            [KeyboardButton(text="\u2795 \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434"), KeyboardButton(text="\u2796 \u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434")],
+            [KeyboardButton(text="\u2139\ufe0f \u041f\u043e\u043c\u043e\u0449\u044c")],
+        ],
+        resize_keyboard=True,
+    )
 
 
 async def init_db():
@@ -203,11 +216,8 @@ async def cmd_start(message: Message):
     await message.answer(
         "\U0001f324\ufe0f <b>\u041f\u043e\u0433\u043e\u0434\u043d\u044b\u0439 \u0431\u043e\u0442</b>\n\n"
         "\u041e\u0442\u043f\u0440\u0430\u0432\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u2014 \u043f\u043e\u043b\u0443\u0447\u0438\u0448\u044c \u043f\u0440\u043e\u0433\u043d\u043e\u0437 \u043d\u0430 5 \u0434\u043d\u0435\u0439.\n\n"
-        "\U0001f4cd <b>\u0418\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435:</b>\n"
-        "/save \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434\n"
-        "/remove \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0443\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434\n"
-        "/cities \u2014 \u043f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435\n\n"
         "\U0001f3ee \u041f\u0440\u0438\u043c\u0435\u0440\u044b: <code>\u041c\u043e\u0441\u043a\u0432\u0430</code>, <code>London</code>, <code>Paris</code>",
+        reply_markup=main_keyboard(),
         parse_mode="HTML",
     )
 
@@ -216,12 +226,11 @@ async def cmd_start(message: Message):
 async def cmd_help(message: Message):
     await message.answer(
         "\U0001f4cb <b>\u041a\u043e\u043c\u0430\u043d\u0434\u044b:</b>\n\n"
-        "/start \u2014 \u043d\u0430\u0447\u0430\u043b\u043e\n"
-        "/help \u2014 \u043f\u043e\u043c\u043e\u0449\u044c\n"
-        "/cities \u2014 \u043c\u043e\u0438 \u0433\u043e\u0440\u043e\u0434\u0430\n"
-        "/save \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c (max 3)\n"
-        "/remove \u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0443\u0434\u0430\u043b\u0438\u0442\u044c\n\n"
-        "\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c \u0438\u043b\u0438 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c.",
+        "\U0001f3ef <b>\u041c\u043e\u0438 \u0433\u043e\u0440\u043e\u0434\u0430</b> \u2014 \u0441\u043f\u0438\u0441\u043e\u043a \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0445\n"
+        "\u2795 <b>\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434</b> \u2014 \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435 (max 3)\n"
+        "\u2796 <b>\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434</b> \u2014 \u0443\u0431\u0440\u0430\u0442\u044c \u0438\u0437 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e\n\n"
+        "\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430.",
+        reply_markup=main_keyboard(),
         parse_mode="HTML",
     )
 
@@ -315,8 +324,78 @@ async def cmd_remove(message: Message):
     await message.answer(text)
 
 
+@router.message(F.text == "\U0001f3ef \u041c\u043e\u0438 \u0433\u043e\u0440\u043e\u0434\u0430")
+async def btn_my_cities(message: Message):
+    await cmd_cities(message)
+
+
+@router.message(F.text == "\u2795 \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434")
+async def btn_save_city(message: Message):
+    user_state[message.from_user.id] = "save"
+    await message.answer(
+        "\u2795 \u041d\u0430\u043f\u0438\u0448\u0438 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430:",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+
+
+@router.message(F.text == "\u2796 \u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u043e\u0440\u043e\u0434")
+async def btn_remove_city(message: Message):
+    favorites = await get_favorites(message.from_user.id)
+    if not favorites:
+        await message.answer(
+            "\U0001f4cd \u0423 \u0442\u0435\u0431\u044f \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u044b\u0445 \u0433\u043e\u0440\u043e\u0434\u043e\u0432.",
+            reply_markup=main_keyboard(),
+        )
+        return
+    user_state[message.from_user.id] = "remove"
+    buttons = [[InlineKeyboardButton(text=f"\u274c {fav['city']}", callback_data=f"del:{fav['city']}")] for fav in favorites]
+    await message.answer(
+        "\u2796 \u0412\u044b\u0431\u0435\u0440\u0438 \u0433\u043e\u0440\u043e\u0434 \u0434\u043b\u044f \u0443\u0434\u0430\u043b\u0435\u043d\u0438\u044f:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
+
+
+@router.callback_query(F.data.startswith("del:"))
+async def handle_del_callback(callback: CallbackQuery):
+    city = callback.data.removeprefix("del:")
+    await callback.answer()
+    user_state.pop(callback.from_user.id, None)
+    ok, text = await remove_favorite(callback.from_user.id, city)
+    await callback.message.answer(text, reply_markup=main_keyboard())
+
+
+@router.message(F.text == "\u2139\ufe0f \u041f\u043e\u043c\u043e\u0449\u044c")
+async def btn_help(message: Message):
+    await cmd_help(message)
+
+
 @router.message(F.text)
 async def handle_city(message: Message):
+    user_id = message.from_user.id
+    state = user_state.pop(user_id, None)
+
+    if state == "save":
+        city_name = message.text.strip()
+        city_display, query = resolve_city(city_name)
+        ok, text = await add_favorite(user_id, city_display, query)
+        await message.answer(text, reply_markup=main_keyboard())
+        return
+
+    if state == "remove":
+        city_name = message.text.strip()
+        _, query = resolve_city(city_name)
+        favorites = await get_favorites(user_id)
+        target_city = None
+        for fav in favorites:
+            if fav["query"] == query or fav["city"].lower() == city_name.lower():
+                target_city = fav["city"]
+                break
+        if not target_city:
+            target_city = city_name.title()
+        ok, text = await remove_favorite(user_id, target_city)
+        await message.answer(text, reply_markup=main_keyboard())
+        return
+
     city_input = message.text.strip()
     city_query = RUSSIAN_CITIES.get(city_input.lower(), city_input)
 
