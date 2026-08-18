@@ -6,8 +6,8 @@ from aiogram import Bot, Dispatcher, Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 
-BOT_TOKEN = "1607675417:AAHrBMYhHL8a_eaLfIJEx9VeHe-UA2uWbSQ"
-OWM_API_KEY = "e91740cf84f0cb47f951bba8c764215c"
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+OWM_API_KEY = os.environ["OWM_API_KEY"]
 OWM_BASE = "https://api.openweathermap.org/data/2.5/forecast"
 
 bot = Bot(token=BOT_TOKEN)
